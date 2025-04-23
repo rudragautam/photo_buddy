@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:cardCornerRadius="10dp"
+    app:cardUseCompatPadding="true"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <ImageView
+        android:adjustViewBounds="true"
+        android:src="@drawable/ic_placeholder"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:id="@+id/photoImage"
+        />
+</com.google.android.material.card.MaterialCardView>
+
+

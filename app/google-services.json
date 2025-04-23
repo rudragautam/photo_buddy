@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "916198516132",
+    "project_id": "photobuddy-c4388",
+    "storage_bucket": "photobuddy-c4388.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:916198516132:android:8dd13f9744d5fe596e8d31",
+        "android_client_info": {
+          "package_name": "com.photobuddy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtAgzio-Ko1OiOLP91fV-7Th5u4H0_D5A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
