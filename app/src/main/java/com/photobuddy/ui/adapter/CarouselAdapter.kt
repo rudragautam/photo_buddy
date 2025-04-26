@@ -27,7 +27,7 @@ class CarouselAdapter(
     }
 
     override fun onBindViewHolder(holder: CarouselViewHolder, position: Int) {
-        glide.load(Uri.parse("file://${items[position].url}"))
+        glide.load(Uri.parse(items.get(position).url))
             .transition(DrawableTransitionOptions.withCrossFade())
             .into(holder.imageView)
     }

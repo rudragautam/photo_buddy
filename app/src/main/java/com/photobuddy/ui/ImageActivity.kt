@@ -36,7 +36,7 @@ class ImageActivity : BaseActivity() {
 
         var dataimage=Gson().fromJson(intent.getStringExtra("data"), Photo::class.java)
 //        val imageUri = Uri.parse(dataimage.url)
-        val imageUri=Uri.parse("file://${dataimage.url}")
+        val imageUri=Uri.parse(dataimage.url)
         val bitmap = getBitmapFromUri(this, imageUri)
 
         bitmap?.let {
@@ -48,7 +48,7 @@ class ImageActivity : BaseActivity() {
                     id = dataimage.id,
                     title = dataimage.title,
                     thumbnailUrl = dataimage.thumbnailUrl,
-                    albumId = dataimage.albumId,
+                    albumId = dataimage.albumId!!,
                     width = dataimage.width,
                     height = dataimage.height,
                     description = dataimage.description

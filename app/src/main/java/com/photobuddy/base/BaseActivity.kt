@@ -17,11 +17,14 @@ import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.updatePadding
+import com.photobuddy.utils.ThemeHelper
 import java.util.Locale
 
 
@@ -62,7 +65,7 @@ abstract class BaseActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        ThemeHelper.applyTheme(ThemeHelper.getSavedTheme(this))
       /*  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
 
         }
@@ -80,7 +83,13 @@ abstract class BaseActivity : AppCompatActivity() {
         // Register app background/foreground listener
 
         hideSystemUI()
+//        enableEdgeToEdge()
         enableEdgeToEdge()
+        ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { view, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.updatePadding(bottom = systemBars.bottom)
+            insets
+        }
 
         // Handle back press logic
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -159,7 +168,7 @@ abstract class BaseActivity : AppCompatActivity() {
         return true
     }
 
-    private fun enableEdgeToEdge() {
+    /*private fun enableEdgeToEdge() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         val insetsController = WindowInsetsControllerCompat(window, window.decorView)
@@ -182,7 +191,7 @@ abstract class BaseActivity : AppCompatActivity() {
         // Make the status bar transparent
 //        window.statusBarColor = android.graphics.Color.TRANSPARENT
         insetsController.hide(WindowInsetsCompat.Type.statusBars())
-    }
+    }*/
 
     open fun onCustomBackPressed() {
 

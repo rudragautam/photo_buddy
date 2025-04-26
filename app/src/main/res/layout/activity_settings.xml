@@ -5,12 +5,6 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.ImageActivity">
-
-    <ImageView
-        android:id="@+id/photoImage"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:src="@drawable/ic_photo" />
+    tools:context=".ui.SettingsActivity">
 
 </androidx.constraintlayout.widget.ConstraintLayout>

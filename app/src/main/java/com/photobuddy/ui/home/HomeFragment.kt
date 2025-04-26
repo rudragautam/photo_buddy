@@ -11,10 +11,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.google.android.material.snackbar.Snackbar
 import com.photobuddy.databinding.FragmentHomeBinding
+import com.photobuddy.ui.adapter.AlbumAdapter
 import com.photobuddy.ui.adapter.PhotoAdapter
 import com.photobuddy.utils.visible
 import com.photobuddy.viewmodel.PhotoViewModel
@@ -26,6 +31,8 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private val photoAdapter = PhotoAdapter()
+    private val albumAdapter = AlbumAdapter()
+
     private val photoViewModel: PhotoViewModel by viewModels()
 
     // Permission request launcher
@@ -56,8 +63,13 @@ class HomeFragment : Fragment() {
     private fun setupRecyclerView() {
         binding.photoRecyclerView.apply {
             adapter = photoAdapter
-            layoutManager=GridLayoutManager(requireActivity(),5)
+            layoutManager=StaggeredGridLayoutManager(2, RecyclerView.HORIZONTAL)
             setHasFixedSize(true)
+        }
+
+        binding.albumRecyclerView.apply {
+             layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+            adapter = albumAdapter
         }
         /*val snapHelper = CarouselSnapHelper()
         snapHelper.attachToRecyclerView( binding.photoRecyclerView)*/
@@ -65,6 +77,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun observeViewModel() {
+        photoViewModel.loadAlbumsWithImageCount()
         lifecycleScope.launch {
             photoViewModel.isLoading.collectLatest { isLoading ->
                 binding.progressBar.visible(isLoading)
@@ -94,6 +107,16 @@ class HomeFragment : Fragment() {
                     showPermissionExplanation()
                 }
             }
+        }
+
+
+
+
+        lifecycleScope.launch {
+            photoViewModel.albumsWithImageCount.observe(requireActivity(), Observer { albums ->
+                albumAdapter.submitList(albums)
+                binding.albumRecyclerView.adapter = albumAdapter
+            })
         }
     }
 

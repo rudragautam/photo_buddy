@@ -7,10 +7,15 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import com.photobuddy.data.db.entities.Face
 import com.photobuddy.data.db.entities.FaceEntity
+import com.photobuddy.data.db.entities.FaceWithPhotoCount
+import com.photobuddy.data.db.entities.FaceWithPhotos
 import com.photobuddy.data.db.entities.MemoryCapsule
 import com.photobuddy.data.db.entities.PhotoEntity
+import com.photobuddy.data.db.entities.PhotoFaceCrossRef
 import com.photobuddy.data.db.entities.PhotoWithFaces
+import com.photobuddy.data.model.AlbumWithImageCountAndRecentImage
 
 @Dao
 interface PhotoDao {
@@ -53,7 +58,33 @@ interface PhotoDao {
 
     @Query("SELECT * FROM faces")
     suspend fun getAllFaces(): List<FaceEntity>
+
+    @Query("SELECT * FROM photos WHERE faceId = :faceId")
+    suspend fun getPhotosByFace(faceId: Int): List<PhotoEntity>
+
+    @Query("UPDATE photos SET faceId = :newId WHERE faceId = :oldId")
+    suspend fun updateFaceId(oldId: Int, newId: Int)
+
+    @Query("""
+        SELECT folderName, 
+               albumId, 
+               COUNT(*) AS imageCount, 
+               (SELECT url FROM photos p WHERE p.albumId = photos.albumId ORDER BY p.dateTaken DESC LIMIT 1) AS recentImageUrl
+        FROM photos 
+        GROUP BY folderName, albumId
+    """)
+    suspend fun getAllAlbumsWithImageCountAndRecentImage(): List<AlbumWithImageCountAndRecentImage>
+
+    @Query("""
+        SELECT * FROM photos
+        WHERE albumId = :albumId
+    """)
+    suspend fun getPhotosByAlbumId(albumId: Int): List<PhotoEntity>
+
+
 }
+
+
 
 @Dao
 interface MemoryCapsuleDao {
@@ -62,5 +93,23 @@ interface MemoryCapsuleDao {
 
     @Query("SELECT * FROM capsules")
     fun getAllCapsules(): LiveData<List<MemoryCapsule>>
+}
+
+@Dao
+interface FaceDao {
+    @Insert
+    suspend fun insertFace(face: Face): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertCrossRef(crossRef: PhotoFaceCrossRef)
+
+    @Transaction
+    @Query("SELECT * FROM face WHERE faceId = :faceId")
+    suspend fun getFaceWithPhotos(faceId: Int): FaceWithPhotos
+
+    @Transaction
+    @Query("SELECT * FROM face")
+    suspend fun getAllFacesWithPhotoCount(): List<FaceWithPhotoCount>
+
 }
 

@@ -3,6 +3,7 @@ package com.photobuddy.data.db.entities
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
@@ -15,11 +16,13 @@ import java.util.UUID
             childColumns = ["photoId"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index(value = ["photoId"])] // ✅ Add this
 )
 data class FaceEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
-    val photoId: String, // Foreign key referencing the photo
-    val faceName: String, // Name of the person detected
-    val faceCoordinates: String? = null // Optional, store face coordinates or bounding box info
+    val photoId: String,
+    val faceName: String,
+    val faceCoordinates: String? = null
 )
+

@@ -1,8 +1,13 @@
 package com.photobuddy.viewmodel
 
 import android.app.Application
+import androidx.exifinterface.media.ExifInterface
 import android.content.ContentResolver
+import android.content.ContentUris
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Rect
 import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
@@ -10,11 +15,20 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.google.mlkit.vision.face.FaceDetector
 import com.photobuddy.data.db.AppDatabase
+import com.photobuddy.data.db.entities.Face
 import com.photobuddy.data.db.entities.FaceEntity
+import com.photobuddy.data.db.entities.FaceWithPhotoCount
 import com.photobuddy.data.db.entities.PhotoEntity
+import com.photobuddy.data.db.entities.PhotoFaceCrossRef
+import com.photobuddy.data.model.AlbumWithImageCountAndRecentImage
 import com.photobuddy.data.model.FaceGroupUiModel
 import com.photobuddy.data.model.Photo
 import com.photobuddy.data.repository.PhotoRepository
+import com.photobuddy.utils.getIntOrNull
+import com.photobuddy.utils.getLongOrNull
+import com.photobuddy.utils.getStringOrNull
+import com.photobuddy.utils.tflitehelper.FaceDetectorUtils
+import com.photobuddy.utils.tflitehelper.FaceEmbeddingExtractor
 import com.photobuddy.utils.tflitehelper.FaceGroupManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +36,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.util.UUID
 
 class PhotoViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,9 +53,51 @@ class PhotoViewModel(application: Application) : AndroidViewModel(application) {
     private val _permissionGranted = MutableStateFlow(false)
     val permissionGranted: StateFlow<Boolean> = _permissionGranted.asStateFlow()
 
+    private val _albumsWithImageCount = MutableLiveData<List<AlbumWithImageCountAndRecentImage>>()
+    val albumsWithImageCount: LiveData<List<AlbumWithImageCountAndRecentImage>> = _albumsWithImageCount
+
     init {
+        FaceEmbeddingExtractor.loadModel(getApplication())
         val photoDao = AppDatabase.getInstance(application).photoDao()
         repository = PhotoRepository(photoDao, application)
+//        loadAlbumsWithImageCount()
+    }
+
+     fun loadAlbumsWithImageCount() {
+        viewModelScope.launch {
+            val albums = AppDatabase.getInstance(getApplication()).photoDao().getAllAlbumsWithImageCountAndRecentImage()
+            _albumsWithImageCount.postValue(albums)
+        }
+    }
+
+    private val _faces = MutableLiveData<List<FaceWithPhotoCount>>()
+    val faces: LiveData<List<FaceWithPhotoCount>> = _faces
+
+    fun loadAllFaces() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val allFaces = AppDatabase.getInstance(getApplication()).faceDao().getAllFacesWithPhotoCount()
+            _faces.postValue(allFaces)
+        }
+    }
+
+    val syncStatus = MutableLiveData<String>()
+    fun syncAllFaces() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val context = getApplication<Application>().applicationContext
+            val allPhotos = AppDatabase.getInstance(getApplication()).photoDao().getAllPhotos()
+
+            FaceDetectorUtils.syncAllPhotos(context, allPhotos)
+
+            syncStatus.postValue("Sync Completed!")
+        }
+    }
+
+    private fun getBitmapFromPath(path: String): Bitmap? {
+        return try {
+            BitmapFactory.decodeFile(path)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun checkPermissionsAndLoadPhotos(hasPermission: Boolean) {
@@ -79,18 +136,123 @@ class PhotoViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun fetchPhotosFromDeviceStorage(): List<Photo> {
         return withContext(Dispatchers.IO) {
-            val photos = mutableListOf<Photo>()
+            val images = mutableListOf<Photo>()
             val context = getApplication<Application>().applicationContext
             val contentResolver: ContentResolver = context.contentResolver
 
             val projection = arrayOf(
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.MIME_TYPE,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.DATE_MODIFIED,
+                MediaStore.Images.Media.WIDTH,
+                MediaStore.Images.Media.HEIGHT,
+                MediaStore.Images.Media.ORIENTATION,
+                MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
+                MediaStore.Images.Media.RELATIVE_PATH
+            )
+
+            val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
+
+            contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                null,
+                null,
+                sortOrder
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idCol)
+                    val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+
+                    val photo = Photo(
+                        id = id.toString(),
+                        title = cursor.getStringOrNull(MediaStore.Images.Media.DISPLAY_NAME) ?: "",
+                        url = uri.toString(),
+                        thumbnailUrl = uri.toString(),
+                        albumId = "PB_"+cursor.getStringOrNull(MediaStore.Images.Media.BUCKET_DISPLAY_NAME),
+                        width = cursor.getIntOrNull(MediaStore.Images.Media.WIDTH),
+                        height = cursor.getIntOrNull(MediaStore.Images.Media.HEIGHT),
+                        dateTaken = cursor.getLongOrNull(MediaStore.Images.Media.DATE_TAKEN),
+                        mimeType = cursor.getStringOrNull(MediaStore.Images.Media.MIME_TYPE),
+                        size = cursor.getLongOrNull(MediaStore.Images.Media.SIZE),
+                        dateAdded = cursor.getLongOrNull(MediaStore.Images.Media.DATE_ADDED),
+                        dateModified = cursor.getLongOrNull(MediaStore.Images.Media.DATE_MODIFIED),
+                        orientation = cursor.getIntOrNull(MediaStore.Images.Media.ORIENTATION),
+                        folderName = cursor.getStringOrNull(MediaStore.Images.Media.BUCKET_DISPLAY_NAME),
+                        relativePath = cursor.getStringOrNull(MediaStore.Images.Media.RELATIVE_PATH)
+                    )
+
+                    val updatedPhoto = try {
+                        contentResolver.openInputStream(uri)?.use { input ->
+                            val exif = ExifInterface(input)
+                            val latLong = exif.latLong
+                            photo.copy(
+                                cameraMake = exif.getAttribute(ExifInterface.TAG_MAKE),
+                                cameraModel = exif.getAttribute(ExifInterface.TAG_MODEL),
+                                aperture = exif.getAttribute(ExifInterface.TAG_APERTURE_VALUE),
+                                iso = exif.getAttribute(ExifInterface.TAG_ISO_SPEED_RATINGS),
+                                exposureTime = exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME),
+                                focalLength = exif.getAttribute(ExifInterface.TAG_FOCAL_LENGTH),
+                                whiteBalance = exif.getAttribute(ExifInterface.TAG_WHITE_BALANCE),
+                                flash = exif.getAttribute(ExifInterface.TAG_FLASH),
+                                dateTime = exif.getAttribute(ExifInterface.TAG_DATETIME),
+                                latitude = latLong?.getOrNull(0),
+                                longitude = latLong?.getOrNull(1)
+                            )
+                        } ?: photo
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        photo
+                    }
+
+                    images.add(updatedPhoto)
+                }
+            }
+
+            if (images.isNotEmpty()) {
+                repository.refreshPhotos(images)
+            }
+            images
+        }
+    }
+
+/*
+    private suspend fun fetchPhotosFromDeviceStorage(): List<Photo> {
+        return withContext(Dispatchers.IO) {
+            val photos = mutableListOf<Photo>()
+            val context = getApplication<Application>().applicationContext
+            val contentResolver: ContentResolver = context.contentResolver
+
+            */
+/*val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
                 MediaStore.Images.Media.DATA,
                 MediaStore.Images.Media.DATE_TAKEN,
                 MediaStore.Images.Media.WIDTH,
                 MediaStore.Images.Media.HEIGHT,
-                MediaStore.Images.Media.SIZE
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.ALBUM
+            )*//*
+
+            val projection = arrayOf(
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.MIME_TYPE,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.DATE_MODIFIED,
+                MediaStore.Images.Media.WIDTH,
+                MediaStore.Images.Media.HEIGHT,
+                MediaStore.Images.Media.ORIENTATION,
+                MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
+                MediaStore.Images.Media.RELATIVE_PATH
             )
 
             val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
@@ -133,6 +295,8 @@ class PhotoViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
+
+
             // Cache the photos in local DB
             if (photos.isNotEmpty()) {
                 repository.refreshPhotos(photos)
@@ -141,6 +305,7 @@ class PhotoViewModel(application: Application) : AndroidViewModel(application) {
             photos
         }
     }
+*/
 
     fun insert(photo: PhotoEntity) = viewModelScope.launch {
         repository.insertPhoto(photo)
@@ -198,7 +363,7 @@ class PhotoViewModel(application: Application) : AndroidViewModel(application) {
                     faceId = photo.faceId,
                     width = photo.width,
                     height = photo.height,
-                    albumId = photo.albumId,
+                    albumId = photo.albumId!!,
                     thumbnailUrl = photo.thumbnailUrl,
                     dateTaken = photo.dateTaken,
                     description = photo.description,

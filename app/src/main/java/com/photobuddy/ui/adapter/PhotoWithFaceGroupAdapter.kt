@@ -76,7 +76,7 @@ class PhotoWithFaceGroupAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>(
             var requestOptions = RequestOptions()
             requestOptions = requestOptions.transforms(CenterCrop(), RoundedCorners(16))
             Glide.with(imageView.context)
-                .load(Uri.parse("file://${photo.url}"))
+                .load(Uri.parse(photo.url))
                 .apply(requestOptions)
                 .placeholder(R.drawable.ic_placeholder) // Add a placeholder
                 .error(R.drawable.ic_photo) // Add an error image

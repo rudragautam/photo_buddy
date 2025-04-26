@@ -18,6 +18,7 @@ import com.photobuddy.data.db.entities.PhotoEntity
 import com.photobuddy.data.model.FaceGroup
 import com.photobuddy.data.model.FaceGroupUiModel
 import com.photobuddy.data.model.Photo
+import com.photobuddy.viewmodel.PhotoWithFaceGroup
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -30,9 +31,18 @@ class FaceGroupManager(context: Context) {
 
     private val faceGroups = mutableListOf<FaceGroup>()
 
+    /*private val faceDetectorOptions = FaceDetectorOptions.Builder()
+        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+        .build()*/
+
     private val faceDetectorOptions = FaceDetectorOptions.Builder()
         .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+        .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+        .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+        .enableTracking()
         .build()
+
+
 
     private val detector = FaceDetection.getClient(faceDetectorOptions)
     private val interpreter: Interpreter
@@ -204,6 +214,44 @@ class FaceGroupManager(context: Context) {
         val startOffset = assetFileDescriptor.startOffset
         val declaredLength = assetFileDescriptor.declaredLength
         return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
+    }
+
+
+
+    fun getAllGroups(): List<PhotoWithFaceGroup> {
+        // Group by some logic - e.g., image path or similarity (simple grouping here)
+        val grouped = mutableMapOf<String, MutableList<PhotoEntity>>()
+
+        faceGroups.forEach { group ->
+            val groupId = group.groupId ?: UUID.randomUUID().toString()
+            val photoEntity = PhotoEntity(
+                url = group.imagePaths!!.first(), // assuming one image per group
+                faceId = groupId,
+                id = TODO(),
+                title = TODO(),
+                thumbnailUrl = TODO(),
+                albumId = TODO(),
+                width = TODO(),
+                height = TODO(),
+                dateTaken = TODO(),
+                description = TODO()
+
+            )
+
+            if (grouped.containsKey(groupId)) {
+                grouped[groupId]?.add(photoEntity)
+            } else {
+                grouped[groupId] = mutableListOf(photoEntity)
+            }
+        }
+
+        return grouped.map { (groupId, photoList) ->
+            PhotoWithFaceGroup(
+                faceId = groupId,
+                faceName = "Face ${groupId.take(5)}",
+                photos = photoList
+            )
+        }
     }
 
 

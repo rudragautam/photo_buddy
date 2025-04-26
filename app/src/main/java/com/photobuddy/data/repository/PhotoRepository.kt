@@ -2,20 +2,39 @@ package com.photobuddy.data.repository
 
 import android.content.ContentResolver
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Rect
 import android.provider.MediaStore
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetectorOptions
+import com.photobuddy.data.db.AppDatabase
+import com.photobuddy.data.db.FaceDao
 import com.photobuddy.data.db.PhotoDao
+import com.photobuddy.data.db.entities.Face
 import com.photobuddy.data.db.entities.FaceEntity
 import com.photobuddy.data.db.entities.PhotoEntity
+import com.photobuddy.data.db.entities.PhotoFaceCrossRef
 import com.photobuddy.data.model.Photo
 import com.photobuddy.data.model.Video
+import com.photobuddy.utils.tflitehelper.FaceDetectorUtils
+import com.photobuddy.utils.tflitehelper.FaceEmbeddingExtractor
+import com.photobuddy.utils.tflitehelper.await
 import com.photobuddy.viewmodel.PhotoWithFaceGroup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 
 class PhotoRepository(
     private val photoDao: PhotoDao,
     private val context: Context
 ) {
+    private val faceDetectorOptions = FaceDetectorOptions.Builder()
+        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+        .build()
+
+    private val detector = FaceDetection.getClient(faceDetectorOptions)
+
     suspend fun getAllPhotos(): List<Photo> {
         return withContext(Dispatchers.IO) {
             photoDao.getAllPhotos().map { it.toPhoto() }
@@ -101,7 +120,7 @@ class PhotoRepository(
                             title = name,
                             url = path,
                             thumbnailUrl = path, // Using same path for thumbnail
-                            albumId = 0, // Not applicable for device photos
+                            albumId = "0", // Not applicable for device photos
                             width = width,
                             height = height,
                             dateTaken = dateTaken,
@@ -175,4 +194,40 @@ class PhotoRepository(
             photoDao.getPhotosByAlbum(albumId).map { it.toPhoto() }
         }
     }
+
+    // Step 6: Repository Logic (example)
+    suspend fun syncFacesWithPhotos(
+        photoList: List<PhotoEntity>,
+        detectFaces: suspend (Bitmap) -> List<Pair<Rect, List<Float>>>,
+        getBitmap: suspend (photoUrl: String) -> Bitmap,
+        faceDao: FaceDao
+    ) {
+        for (photo in photoList) {
+            val bitmap = getBitmap(photo.url)
+            val faces = detectFaces(bitmap)
+
+            faces.forEachIndexed { index, (bounds, embedding) ->
+                val faceBitmap = Bitmap.createBitmap(
+                    bitmap,
+                    bounds.left,
+                    bounds.top,
+                    bounds.width(),
+                    bounds.height()
+                )
+                val stream = ByteArrayOutputStream()
+                faceBitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+                val thumbnailBytes = stream.toByteArray()
+
+                val face = Face(
+                    title = "Face_${System.currentTimeMillis()}_$index",
+                    photoId = photo.id,
+                    thumbnail = thumbnailBytes,
+                    embedding = embedding
+                )
+                val faceId = faceDao.insertFace(face).toInt()
+                faceDao.insertCrossRef(PhotoFaceCrossRef(photo.id, faceId))
+            }
+        }
+    }
+
 }
