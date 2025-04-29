@@ -19,10 +19,13 @@
         android:theme="@style/AppTheme"
         tools:targetApi="31">
         <activity
+            android:name=".ui.PhotoDetailsActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.SettingsActivity"
             android:exported="false" />
         <activity
-            android:name=".ui.ImageActivity"
+            android:name=".ui.PhotoListActivity"
             android:exported="false" />
         <activity
             android:name=".ui.FullScreenImageActivity"

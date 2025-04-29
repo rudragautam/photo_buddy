@@ -11,12 +11,13 @@
 
     <ImageView
         android:id="@+id/faceImage"
-        android:layout_width="100dp"
-        android:layout_height="100dp"
+        android:layout_width="65dp"
+        android:layout_height="65dp"
         android:scaleType="centerCrop"
         android:background="@drawable/ic_placeholder" />
 
     <TextView
+        android:textSize="12sp"
         android:padding="5dp"
         android:layout_gravity="center"
         android:id="@+id/photoCount"

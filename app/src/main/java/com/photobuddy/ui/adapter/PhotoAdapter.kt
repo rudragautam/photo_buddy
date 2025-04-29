@@ -13,7 +13,7 @@ import com.google.gson.Gson
 import com.photobuddy.R
 import com.photobuddy.data.model.Photo
 import com.photobuddy.databinding.ItemPhotoBinding
-import com.photobuddy.ui.ImageActivity
+import com.photobuddy.ui.PhotoListActivity
 
 class PhotoAdapter : RecyclerView.Adapter<PhotoAdapter.PhotoViewHolder>() {
     private var photos: List<Photo> = emptyList()
@@ -41,7 +41,7 @@ class PhotoAdapter : RecyclerView.Adapter<PhotoAdapter.PhotoViewHolder>() {
             // Image click to view fullscreen
             itemView.setOnClickListener {
                 val context = itemView.context
-                val intent = Intent(context, ImageActivity::class.java).apply {
+                val intent = Intent(context, PhotoListActivity::class.java).apply {
                     putExtra("data", Gson().toJson(photo))
                 }
                 context.startActivity(intent)

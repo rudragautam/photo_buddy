@@ -1,5 +1,6 @@
 package com.photobuddy.utils
 
+import android.content.res.Resources
 import android.database.Cursor
 import android.view.View
 import java.text.DecimalFormat
@@ -21,6 +22,10 @@ fun Long.formatFileSize(): String {
 
 fun Int.formatNumber(): String {
     return NumberFormat.getNumberInstance().format(this)
+}
+
+fun Int.dp(resources: Resources): Int {
+    return (this * resources.displayMetrics.density).toInt()
 }
 
 fun Cursor.getStringOrNull(column: String) = getColumnIndex(column).takeIf { it >= 0 }?.let { getString(it) }

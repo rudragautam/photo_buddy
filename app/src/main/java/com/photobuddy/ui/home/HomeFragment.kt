@@ -20,6 +20,8 @@ import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.google.android.material.snackbar.Snackbar
 import com.photobuddy.databinding.FragmentHomeBinding
 import com.photobuddy.ui.adapter.AlbumAdapter
+import com.photobuddy.ui.adapter.FaceAdapter
+import com.photobuddy.ui.adapter.LibraryAdapter
 import com.photobuddy.ui.adapter.PhotoAdapter
 import com.photobuddy.utils.visible
 import com.photobuddy.viewmodel.PhotoViewModel
@@ -30,8 +32,10 @@ class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
-    private val photoAdapter = PhotoAdapter()
+//    private val photoAdapter = PhotoAdapter()
+    private val libraryAdapter = LibraryAdapter()
     private val albumAdapter = AlbumAdapter()
+    private val faceAdapter = FaceAdapter()
 
     private val photoViewModel: PhotoViewModel by viewModels()
 
@@ -57,13 +61,14 @@ class HomeFragment : Fragment() {
         setupRecyclerView()
         observeViewModel()
         checkPermissions()
-        setupRefreshListener()
+//        binding.swipeRefreshLayout.isRefreshing = false
+//        setupRefreshListener()
     }
 
     private fun setupRecyclerView() {
         binding.photoRecyclerView.apply {
-            adapter = photoAdapter
-            layoutManager=StaggeredGridLayoutManager(2, RecyclerView.HORIZONTAL)
+            adapter = faceAdapter
+            layoutManager=LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
             setHasFixedSize(true)
         }
 
@@ -71,6 +76,13 @@ class HomeFragment : Fragment() {
              layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
             adapter = albumAdapter
         }
+
+        binding.libraryRecyclerView.apply {
+            layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+            adapter = libraryAdapter
+        }
+
+
         /*val snapHelper = CarouselSnapHelper()
         snapHelper.attachToRecyclerView( binding.photoRecyclerView)*/
 
@@ -86,10 +98,10 @@ class HomeFragment : Fragment() {
         }
 
         lifecycleScope.launch {
-            photoViewModel.photos.collectLatest { photos ->
+            /*photoViewModel.photos.collectLatest { photos ->
                 photoAdapter.submitList(photos)
                 binding.emptyState.visible(photos.isEmpty())
-            }
+            }*/
         }
 
         lifecycleScope.launch {
@@ -115,9 +127,16 @@ class HomeFragment : Fragment() {
         lifecycleScope.launch {
             photoViewModel.albumsWithImageCount.observe(requireActivity(), Observer { albums ->
                 albumAdapter.submitList(albums)
+                libraryAdapter.submitList(albums)
                 binding.albumRecyclerView.adapter = albumAdapter
             })
         }
+
+        photoViewModel.faces.observe(viewLifecycleOwner) { faces ->
+            faceAdapter.submitList(faces)
+        }
+
+        photoViewModel.loadAllFaces()
     }
 
     private fun checkPermissions() {
@@ -163,12 +182,12 @@ class HomeFragment : Fragment() {
 //        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
     }
 
-    private fun setupRefreshListener() {
-        binding.swipeRefreshLayout.setOnRefreshListener {
-            photoViewModel.refreshPhotos()
-            binding.swipeRefreshLayout.isRefreshing = false
-        }
-    }
+//    private fun setupRefreshListener() {
+//        binding.swipeRefreshLayout.setOnRefreshListener {
+//            photoViewModel.refreshPhotos()
+//            binding.swipeRefreshLayout.isRefreshing = false
+//        }
+//    }
 
     override fun onDestroyView() {
         super.onDestroyView()

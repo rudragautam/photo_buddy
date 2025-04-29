@@ -4,24 +4,18 @@ import android.app.Application
 import androidx.exifinterface.media.ExifInterface
 import android.content.ContentResolver
 import android.content.ContentUris
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Rect
 import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import com.google.mlkit.vision.face.FaceDetector
 import com.photobuddy.data.db.AppDatabase
-import com.photobuddy.data.db.entities.Face
 import com.photobuddy.data.db.entities.FaceEntity
 import com.photobuddy.data.db.entities.FaceWithPhotoCount
 import com.photobuddy.data.db.entities.PhotoEntity
-import com.photobuddy.data.db.entities.PhotoFaceCrossRef
 import com.photobuddy.data.model.AlbumWithImageCountAndRecentImage
-import com.photobuddy.data.model.FaceGroupUiModel
 import com.photobuddy.data.model.Photo
 import com.photobuddy.data.repository.PhotoRepository
 import com.photobuddy.utils.getIntOrNull
@@ -36,7 +30,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.util.UUID
 
 class PhotoViewModel(application: Application) : AndroidViewModel(application) {
@@ -78,6 +71,18 @@ class PhotoViewModel(application: Application) : AndroidViewModel(application) {
             val allFaces = AppDatabase.getInstance(getApplication()).faceDao().getAllFacesWithPhotoCount()
             _faces.postValue(allFaces)
         }
+    }
+
+    fun loadImageByFolderName(PAGE: String?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val allFaces = PAGE?.let {
+                AppDatabase.getInstance(getApplication()).photoDao().getImageByFolderName(
+                    it
+                )
+            }
+            _photos.value = allFaces!!
+        }
+
     }
 
     val syncStatus = MutableLiveData<String>()

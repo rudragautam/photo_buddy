@@ -16,6 +16,7 @@ import com.photobuddy.data.db.entities.PhotoEntity
 import com.photobuddy.data.db.entities.PhotoFaceCrossRef
 import com.photobuddy.data.db.entities.PhotoWithFaces
 import com.photobuddy.data.model.AlbumWithImageCountAndRecentImage
+import com.photobuddy.data.model.Photo
 
 @Dao
 interface PhotoDao {
@@ -65,14 +66,24 @@ interface PhotoDao {
     @Query("UPDATE photos SET faceId = :newId WHERE faceId = :oldId")
     suspend fun updateFaceId(oldId: Int, newId: Int)
 
-    @Query("""
+/*    @Query("""
         SELECT folderName, 
                albumId, 
                COUNT(*) AS imageCount, 
                (SELECT url FROM photos p WHERE p.albumId = photos.albumId ORDER BY p.dateTaken DESC LIMIT 1) AS recentImageUrl
         FROM photos 
         GROUP BY folderName, albumId
-    """)
+    """)*/
+    @Query("""
+    SELECT folderName, 
+           albumId, 
+           COUNT(*) AS imageCount, 
+           (SELECT url FROM photos p WHERE p.albumId = photos.albumId ORDER BY p.dateTaken DESC LIMIT 1) AS recentImageUrl
+    FROM photos 
+    GROUP BY folderName, albumId
+    ORDER BY imageCount DESC
+""")
+
     suspend fun getAllAlbumsWithImageCountAndRecentImage(): List<AlbumWithImageCountAndRecentImage>
 
     @Query("""
@@ -80,6 +91,15 @@ interface PhotoDao {
         WHERE albumId = :albumId
     """)
     suspend fun getPhotosByAlbumId(albumId: Int): List<PhotoEntity>
+
+    @Query("""
+    SELECT * 
+    FROM photos 
+    WHERE folderName = :folderName
+    ORDER BY dateTaken DESC
+""")
+    suspend fun getImageByFolderName(folderName: String): List<Photo>
+
 
 
 }
